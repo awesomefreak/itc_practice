@@ -18,9 +18,12 @@ class RepoDataCollector:
         while True:
             params["page"] = page_index
             response_data = request_func(params).json()
-            if response_data and not page_index > max_iter:
+            if response_data:
                 batch_response_data.extend(response_data)
-                page_index += 1
+                if max_iter and not page_index > max_iter:
+                    page_index += 1
+                else:
+                    break
             else:
                 break
         return batch_response_data
