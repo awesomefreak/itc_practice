@@ -5,7 +5,6 @@ import urllib.parse
 import urllib.request
 from email.message import Message
 
-
 class Response(typing.NamedTuple):
     body: str
     headers: Message
@@ -58,7 +57,7 @@ def request(
             request_data = urllib.parse.urlencode(data).encode()
 
     httprequest = urllib.request.Request(
-        url, data=request_data, headers=headers, method=method, 
+        url, data=request_data, headers=headers, method=method,
     )
 
     try:
