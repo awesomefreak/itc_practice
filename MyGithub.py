@@ -4,8 +4,12 @@ from urllib import response
 from MyRequests import request
 
 class Github:
-    headers = {}
+    headers = {
+        "Accept": "application/vnd.github.v3+json"
+    }
     base_url = None
+    owner = None
+    repo = None
 
     def __init__(self, login_or_token, password=None, base_url="https://api.github.com"):
         assert login_or_token and isinstance(login_or_token, str)
@@ -26,14 +30,24 @@ class Github:
             token = login_or_token
             auth_header = f"token {token}"
         self.headers['Authorization'] = auth_header
-    
-    def get_pulls(self, owner, repo):
-        url = self.base_url + f"/repos/{owner}/{repo}/pulls"
-        params = {"state": "all"}
+
+    def set_repo(self, owner, repo):
+        assert owner and isinstance(owner, str)
+        assert repo and isinstance(repo, str)
+        self.owner = owner
+        self.repo = repo
+
+    def get_pulls(self, params):
+        url = self.base_url + f"/repos/{self.owner}/{self.repo}/pulls"
         response = request(url, headers=self.headers, params=params, method="get")
-        json_response = response.json()
-        return json_response
+        return response
 
+    def get_issues(self, params):
+        url = self.base_url + f"/repos/{self.owner}/{self.repo}/issues"
+        response = request(url, headers=self.headers, params=params, method="get")
+        return response
 
-
-
+    def get_commits(self, params):
+        url = self.base_url + f"/repos/{self.owner}/{self.repo}/commits"
+        response = request(url, headers=self.headers, params=params, method="get")
+        return response
