@@ -20,8 +20,8 @@ class RepoDataCollector:
             response_data = request_func(params).json()
         except MyGithubException as e:
             print(e)
-            response_data = {}
-        return(response_data)
+            response_data = []
+        return response_data
 
     def _iterate_over_pages(self, request_func, params, max_iter=None):
         batch_response_data = []
@@ -77,128 +77,157 @@ class RepoDataCollector:
         return issues_data
 
 
-def get_opened_and_closed_objects(data, date_start, date_end):
-    d = {
-        "opened": 0,
-        "closed": 0
-    }
-    for elem in data:
-        created_at = elem.get("created_at")
-        created_at = datetime.datetime.strptime(
-            created_at, '%Y-%m-%dT%H:%M:%SZ'
-            ).date()
-        if date_start <= created_at <= date_end:
-            d["opened"] += 1
-        if closed_at := elem.get("closed_at"):
-            closed_at = datetime.datetime.strptime(
-                closed_at, '%Y-%m-%dT%H:%M:%SZ'
-                ).date()
-            if date_start <= closed_at <= date_end:
-                d["closed"] += 1
-    return d
 
-def get_retired_objects(data, days_for_retirement):
-    today = datetime.date.today()
-    retired_count = 0
-    for elem in data:
-        if not elem.get("closed_at"):
+class GithubAnalytics:
+    commits_data = None
+    pull_requests_data = None
+    issues_data = None
+
+    def __init__(self, commits_data, pull_requests_data, issues_data):
+        assert isinstance(commits_data, list)
+        self.commits_data = commits_data
+        assert isinstance(commits_data, list)
+        self.pull_requests_data = pull_requests_data
+        assert isinstance(commits_data, list)
+        self.issues_data = issues_data
+
+    @staticmethod
+    def str_to_datetime(str_date):
+        return datetime.datetime.strptime(
+            str_date, '%Y-%m-%dT%H:%M:%SZ'
+            )
+
+    def get_opened_and_closed_objects(self, data, date_start, date_end):
+        d = {
+            "opened": 0,
+            "closed": 0
+        }
+        for elem in data:
             created_at = elem.get("created_at")
-            created_at = datetime.datetime.strptime(
-                created_at, '%Y-%m-%dT%H:%M:%SZ'
-                ).date()
-            if today - created_at > datetime.timedelta(days=days_for_retirement):
-                retired_count += 1
-    return retired_count
+            created_at = self.str_to_datetime(created_at)
 
-def get_active_users(commits_data, display_limit=30):
-    """Task 1"""
-    d = defaultdict(lambda: 0)
-    for commit_data in commits_data:
-        commit = commit_data.get("commit")
-        assert commit
-        author = commit.get("author")
-        assert author
-        author_name = author.get("name")
-        assert author_name
-        d[author_name] += 1
-    # sorting and returning display_limit tuples of person name and number of commits
-    return [(k, v) for k, v in sorted(d.items(), key=lambda item: item[1], reverse=True)][:display_limit]
+            if (not date_start or date_start <= created_at) and (not date_end or created_at <= date_end):
+                d["opened"] += 1
+            if closed_at := elem.get("closed_at"):
+                closed_at = self.str_to_datetime(closed_at)
+                if (not date_start or date_start <= created_at) and (not date_end or created_at <= date_end):
+                    d["closed"] += 1
+        return d
 
-def get_opened_and_closed_pull_requests(pull_requests_data, date_start, date_end):
-    """Task 2"""
-    return get_opened_and_closed_objects(pull_requests_data, date_start, date_end)
+    def get_retired_objects(self, data, days_for_retirement):
+        today = datetime.datetime.today()
+        retired_count = 0
+        for elem in data:
+            if not elem.get("closed_at"):
+                created_at = elem.get("created_at")
+                created_at = self.str_to_datetime(created_at)
+                if today - created_at > datetime.timedelta(days=days_for_retirement):
+                    retired_count += 1
+        return retired_count
 
-def get_retired_pull_requests(pull_requests_data, days_for_retirement=30):
-    """Task 3"""
-    return get_retired_objects(pull_requests_data, days_for_retirement)
+    def get_active_users(self, display_limit=30):
+        """Task 1"""
+        d = defaultdict(lambda: 0)
+        for commit_data in self.commits_data:
+            if commit_data.get("commit") and commit_data.get("commit").get("author") and commit_data.get("commit").get("author").get("name"):
+                author_name = commit_data.get("commit").get("author").get("name")
+                d[author_name] += 1
+        # sorting and returning display_limit tuples of person name and number of commits
+        active_users = [(k, v) for k, v in sorted(d.items(), key=lambda item: item[1], reverse=True)][:display_limit]
 
-def get_opened_and_closed_issues(issues_data, date_start, date_end):
-    """Task 4"""
-    return get_opened_and_closed_objects(issues_data, date_start, date_end)
+        print("Table of active users, based on number of commits")
+        print(f"{'Username:': <20}|Number Of Commits:")
+        for username, number_of_commits in active_users:
+            print(f"{username: <20}|{number_of_commits}")
+        print()
 
-def get_retired_issues(issues_data, days_for_retirement=14):
-    """Task 5"""
-    return get_retired_objects(issues_data, days_for_retirement)
+    def get_opened_and_closed_pull_requests(self, date_start, date_end):
+        """Task 2"""
+        opened_and_closed_pull_requests = self.get_opened_and_closed_objects(self.pull_requests_data, date_start, date_end)
 
-def run(owner, repo, date_start=None, date_end=None, branch=None) -> None:
-    token = "YOUR_API_TOKEN"
-    api = Github(token)
+        print(f"Number of opened pull requests: {opened_and_closed_pull_requests['opened']}")
+        print(f"Number of closed pull requests: {opened_and_closed_pull_requests['closed']}\n")
+
+    def get_retired_pull_requests(self, days_for_retirement=30):
+        """Task 3"""
+        retired_pull_requests_count = self.get_retired_objects(self.pull_requests_data, days_for_retirement)
+        print(f"Number of retired pull requests: {retired_pull_requests_count}\n")
+
+    def get_opened_and_closed_issues(self, date_start, date_end):
+        """Task 4"""
+        opened_and_closed_issues =  self.get_opened_and_closed_objects(self.issues_data, date_start, date_end)
+        print(f"Number of opened issues: {opened_and_closed_issues['opened']}")
+        print(f"Number of closed issues: {opened_and_closed_issues['closed']}\n")
+
+    def get_retired_issues(self, days_for_retirement=14):
+        """Task 5"""
+        retired_issues_count = self.get_retired_objects(self.issues_data, days_for_retirement)
+        print(f"Number of retired issues: {retired_issues_count}\n")
+
+    def run_all_tasks(self, date_start, date_end):
+        self.get_active_users()
+        self.get_opened_and_closed_pull_requests(date_start, date_end)
+        self.get_retired_pull_requests()
+        self.get_opened_and_closed_issues(date_start, date_end)
+        self.get_retired_issues()
+
+
+def run(owner, repo, date_start=None, date_end=None, branch=None, token=None) -> None:
+    if token:
+        api = Github(login_or_token=token)
+    else:
+        api = Github()
     api.set_repo(owner, repo)
 
     data_collector = RepoDataCollector(api)
     commits_data = data_collector.get_commits(date_start=date_start, date_end=date_end, branch=branch)
     pull_requests_data = data_collector.get_pull_requests(branch=branch)
     issues_data = data_collector.get_issues()
+    github_analytics = GithubAnalytics(
+        commits_data=commits_data,
+        pull_requests_data=pull_requests_data,
+        issues_data=issues_data
+    )
+    github_analytics.run_all_tasks(date_start, date_end)
 
-    active_users = get_active_users(commits_data)
-    print("Table of active users, based on number of commits")
-    print(f"{'Username:': <20}|Number Of Commits:")
-    for username, number_of_commits in active_users:
-        print(f"{username: <20}|{number_of_commits}")
-    print()
-
-
-    data = get_opened_and_closed_pull_requests(pull_requests_data, date_start, date_end)
-    print(f"Number of opened pull requests: {data['opened']}")
-    print(f"Number of closed pull requests: {data['closed']}\n")
-
-    retired_count = get_retired_pull_requests(pull_requests_data)
-    print(f"Number of retired pull requests: {retired_count}\n")
-
-    data = get_opened_and_closed_issues(issues_data, date_start, date_end)
-    print(f"Number of opened issues: {data['opened']}")
-    print(f"Number of closed issues: {data['closed']}\n")
-
-    retired_count = get_retired_pull_requests(issues_data)
-    print(f"Number of retired issues: {retired_count}\n")
+def str_to_datetime(string, is_start=True):
+    try:
+        if len(string) == 10:
+            date = datetime.datetime.strptime(string, '%Y-%m-%d')
+            if not is_start:
+                date = date.replace(hour=23, minute=59, second=59)
+        elif len(string) == 19:
+            date = datetime.datetime.strptime(string, '%Y-%m-%dT%H:%M:%S')
+        else:
+            raise ValueError
+    except ValueError:
+        raise ValueError('Wrong date_start format, YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS are required')
+    return date
 
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
     argParser.add_argument("-o", "--owner", help="Owner of repo as string", required=True)
     argParser.add_argument("-r", "--repo", help="Repository name as string", required=True)
-    argParser.add_argument("-ds", "--date_start", help="Starting date in YYYY-MM-DD format")
-    argParser.add_argument("-de", "--date_end", help="End date in YYYY-MM-DD format")
+    argParser.add_argument("-ds", "--date_start", help="Starting date in YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS format")
+    argParser.add_argument("-de", "--date_end", help="End date in YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS format")
     argParser.add_argument("-b", "--branch", help="Branch name as string")
+    argParser.add_argument("-t", "--token", help="Github token, for higher rate limit")
 
     args = argParser.parse_args()
-
     owner = args.owner
-    assert owner and isinstance(owner, str)
     repo = args.repo
-    assert repo and isinstance(repo, str)
-    date_start = None
-    if args.date_start:
-        try:
-            date_start = datetime.datetime.strptime(args.date_start, '%Y-%m-%d').date()
-        except ValueError:
-            raise ValueError('Wrong date_start format, YYYY-MM-DD is required')
-    date_end = None
-    if args.date_end:
-        try:
-            date_end = datetime.datetime.strptime(args.date_end, '%Y-%m-%d').date()
-        except ValueError:
-            raise ValueError('Wrong date_end format, YYYY-MM-DD is required')
-    branch = args.branch
-    assert branch and isinstance(branch, str)
 
-    run(owner, repo, date_start, date_end, branch)
+    if args.date_start:
+        date_start = str_to_datetime(args.date_start)
+    else:
+        date_start = None
+
+    if args.date_end:
+        date_end = str_to_datetime(args.date_end, is_start=False)
+    else:
+        date_end = None
+
+    branch = args.branch
+    token = args.token
+
+    run(owner, repo, date_start, date_end, branch, token)
