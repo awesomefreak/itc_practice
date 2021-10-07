@@ -35,16 +35,13 @@ class Github:
     headers = {
         "Accept": "application/vnd.github.v3+json"
     }
-    base_url = None
+    base_url = "https://api.github.com"
     owner = None
     repo = None
 
-    def __init__(self, login_or_token, password=None, base_url="https://api.github.com"):
-        assert login_or_token and isinstance(login_or_token, str)
+    def __init__(self, login_or_token=None, password=None):
+        assert login_or_token is None or isinstance(login_or_token, str)
         assert password is None or isinstance(password, str)
-        assert base_url and isinstance(base_url, str)
-
-        self.base_url = base_url
 
         if password:
             login = login_or_token
@@ -54,30 +51,31 @@ class Github:
                 .replace("\n", "")
             )
             auth_header = f"Basic {b64}"
+            self.headers['Authorization'] = auth_header
         elif login_or_token:
             token = login_or_token
             auth_header = f"token {token}"
-        self.headers['Authorization'] = auth_header
+            self.headers['Authorization'] = auth_header
 
     def github_request(self, url, headers, params, method):
         response = request(url, headers=headers, params=params, method=method)
-        if response.status == 401 and response.get("message") == "Bad credentials":
-            raise BadCredentialsException
-        elif response.status == 403 and response.get("message").startswith(
+        if response.status == 401 and getattr(response, "body") in ["Bad credentials", "Unauthorized"]:
+            raise BadCredentialsException(getattr(response, "body"))
+        elif response.status == 403 and getattr(response, "body") and getattr(response, "body").startswith(
             "Missing or invalid User Agent string"
         ):
-            raise BadUserAgentException
-        elif response.status == 403 and (
-            response.get("message").lower().startswith("api rate limit exceeded")
-            or response.get("message")
+            raise BadUserAgentException(getattr(response, "body"))
+        elif response.status == 403 and getattr(response, "body") and (
+            getattr(response, "body").lower().startswith("api rate limit exceeded")
+            or getattr(response, "body")
             .lower()
             .endswith("please wait a few minutes before you try again.")
         ):
-            raise RateLimitExceededException
+            raise RateLimitExceededException(getattr(response, "body"))
         elif response.status == 200:
             return response
         else:
-            raise UnknownException
+            raise UnknownException(getattr(response, "body"))
 
 
     def set_repo(self, owner, repo):
