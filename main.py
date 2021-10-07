@@ -180,6 +180,8 @@ def run(owner, repo, date_start=None, date_end=None, branch=None, token=None) ->
     api.set_repo(owner, repo)
 
     data_collector = RepoDataCollector(api)
+    # to make multiple time periods dont set date_start and date_end
+    # other data supports multiple time periods for run_all_tasks
     commits_data = data_collector.get_commits(date_start=date_start, date_end=date_end, branch=branch)
     pull_requests_data = data_collector.get_pull_requests(branch=branch)
     issues_data = data_collector.get_issues()
