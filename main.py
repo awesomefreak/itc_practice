@@ -15,6 +15,10 @@ class RepoDataCollector:
         self.api = api
 
     @staticmethod
+    def datetime_to_str(datetime_obj):
+        return datetime_obj.strftime('%Y-%m-%dT%H:%M:%S')
+
+    @staticmethod
     def _run_request(request_func, params):
         try:
             response_data = request_func(params).json()
@@ -43,10 +47,10 @@ class RepoDataCollector:
         params = {
             "per_page": self.COMMITS_MAX_RESULTS_PER_PAGE,
         }
-        if date_start and isinstance(date_start, datetime.date):
-            params["since"] = date_start.strftime('%Y-%m-%d')
-        if date_end and isinstance(date_end, datetime.date):
-            params["until"] = date_end.strftime('%Y-%m-%d')
+        if date_start and isinstance(date_start, datetime.datetime):
+            params["since"] = self.datetime_to_str(date_start)
+        if date_end and isinstance(date_end, datetime.datetime):
+            params["until"] = self.datetime_to_str(date_end)
 
         if branch and isinstance(branch, str):
             params["sha"] = branch
@@ -70,8 +74,8 @@ class RepoDataCollector:
             "state": "all",
             "per_page": self.ISSUES_MAX_RESULTS_PER_PAGE,
         }
-        if date_start and isinstance(date_start, datetime.date):
-            params["since"] = date_start.strftime('%Y-%m-%d')
+        if date_start and isinstance(date_start, datetime.datetime):
+            params["since"] = self.datetime_to_str(date_start)
         issues_data = self._iterate_over_pages(
             self.api.get_issues, params)
         return issues_data
@@ -180,8 +184,6 @@ def run(owner, repo, date_start=None, date_end=None, branch=None, token=None) ->
     api.set_repo(owner, repo)
 
     data_collector = RepoDataCollector(api)
-    # to make multiple time periods dont set date_start and date_end
-    # other data supports multiple time periods for run_all_tasks
     commits_data = data_collector.get_commits(date_start=date_start, date_end=date_end, branch=branch)
     pull_requests_data = data_collector.get_pull_requests(branch=branch)
     issues_data = data_collector.get_issues()
@@ -195,16 +197,16 @@ def run(owner, repo, date_start=None, date_end=None, branch=None, token=None) ->
 def str_to_datetime(string, is_start=True):
     try:
         if len(string) == 10:
-            date = datetime.datetime.strptime(string, '%Y-%m-%d')
+            datetime_obj = datetime.datetime.strptime(string, '%Y-%m-%d')
             if not is_start:
-                date = date.replace(hour=23, minute=59, second=59)
+                datetime_obj = datetime_obj.replace(hour=23, minute=59, second=59)
         elif len(string) == 19:
-            date = datetime.datetime.strptime(string, '%Y-%m-%dT%H:%M:%S')
+            datetime_obj = datetime.datetime.strptime(string, '%Y-%m-%dT%H:%M:%S')
         else:
             raise ValueError
     except ValueError:
         raise ValueError('Wrong date_start format, YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS are required')
-    return date
+    return datetime_obj
 
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
