@@ -118,15 +118,20 @@ class GithubAnalytics:
                     d["closed"] += 1
         return d
 
-    def get_retired_objects(self, data, days_for_retirement):
-        today = datetime.datetime.today()
+    def get_retired_objects(self, data, date_end, days_for_retirement):
         retired_count = 0
         for elem in data:
-            if not elem.get("closed_at"):
-                created_at = elem.get("created_at")
-                created_at = self.str_to_datetime(created_at)
-                if today - created_at > datetime.timedelta(days=days_for_retirement):
-                    retired_count += 1
+            created_at = elem.get("created_at")
+            created_at = self.str_to_datetime(created_at)
+            if date_end - created_at > datetime.timedelta(days=days_for_retirement):
+                if not elem.get("closed_at"):
+                        retired_count += 1
+                else:
+                    closed_at = elem.get("closed_at")
+                    closed_at = self.str_to_datetime(closed_at)
+                    if closed_at > date_end:
+                        retired_count += 1
+
         return retired_count
 
     def get_active_users(self, display_limit=30):
@@ -152,9 +157,9 @@ class GithubAnalytics:
         print(f"Number of opened pull requests: {opened_and_closed_pull_requests['opened']}")
         print(f"Number of closed pull requests: {opened_and_closed_pull_requests['closed']}\n")
 
-    def get_retired_pull_requests(self, days_for_retirement=30):
+    def get_retired_pull_requests(self, date_end, days_for_retirement=30):
         """Task 3"""
-        retired_pull_requests_count = self.get_retired_objects(self.pull_requests_data, days_for_retirement)
+        retired_pull_requests_count = self.get_retired_objects(self.pull_requests_data, date_end, days_for_retirement)
         print(f"Number of retired pull requests: {retired_pull_requests_count}\n")
 
     def get_opened_and_closed_issues(self, date_start, date_end):
@@ -163,17 +168,17 @@ class GithubAnalytics:
         print(f"Number of opened issues: {opened_and_closed_issues['opened']}")
         print(f"Number of closed issues: {opened_and_closed_issues['closed']}\n")
 
-    def get_retired_issues(self, days_for_retirement=14):
+    def get_retired_issues(self, date_end, days_for_retirement=14):
         """Task 5"""
-        retired_issues_count = self.get_retired_objects(self.issues_data, days_for_retirement)
+        retired_issues_count = self.get_retired_objects(self.issues_data, date_end, days_for_retirement)
         print(f"Number of retired issues: {retired_issues_count}\n")
 
     def run_all_tasks(self, date_start, date_end):
         self.get_active_users()
         self.get_opened_and_closed_pull_requests(date_start, date_end)
-        self.get_retired_pull_requests()
+        self.get_retired_pull_requests(date_end)
         self.get_opened_and_closed_issues(date_start, date_end)
-        self.get_retired_issues()
+        self.get_retired_issues(date_end)
 
 
 def run(owner, repo, date_start=None, date_end=None, branch=None, token=None) -> None:
