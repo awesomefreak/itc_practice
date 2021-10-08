@@ -119,6 +119,8 @@ class GithubAnalytics:
         return d
 
     def get_retired_objects(self, data, date_end, days_for_retirement):
+        if date_end:
+            date_end = datetime.datetime.today()
         retired_count = 0
         for elem in data:
             created_at = elem.get("created_at")
