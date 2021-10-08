@@ -1,6 +1,7 @@
 import base64
 from MyRequests import request
 
+
 class MyGithubException(Exception):
     """
     This class is the base of all exceptions raised by MyGithub
@@ -9,7 +10,8 @@ class MyGithubException(Exception):
 
 class RateLimitExceededException(MyGithubException):
     """
-    Exception raised when the rate limit is exceeded (when Github API replies with a 403 rate limit exceeded HTML status)
+    Exception raised when the rate limit is exceeded
+    (when Github API replies with a 403 rate limit exceeded HTML status)
     """
 
 
@@ -21,7 +23,8 @@ class BadCredentialsException(MyGithubException):
 
 class BadUserAgentException(MyGithubException):
     """
-    Exception raised when request is sent with a bad user agent header (when Github API replies with a 403 bad user agent HTML status)
+    Exception raised when request is sent with a bad user agent header
+    (when Github API replies with a 403 bad user agent HTML status)
     """
 
 
@@ -46,7 +49,7 @@ class Github:
         if password:
             login = login_or_token
             b64 = (
-                base64.b64encode((f"{login}:{password}").encode("utf-8"))
+                base64.b64encode(f"{login}:{password}".encode("utf-8"))
                 .decode("utf-8")
                 .replace("\n", "")
             )
@@ -57,7 +60,8 @@ class Github:
             auth_header = f"token {token}"
             self.headers['Authorization'] = auth_header
 
-    def github_request(self, url, headers, params, method):
+    @staticmethod
+    def github_request(url, headers, params, method):
         response = request(url, headers=headers, params=params, method=method)
         if response.status == 401 and getattr(response, "body") in ["Bad credentials", "Unauthorized"]:
             raise BadCredentialsException(getattr(response, "body"))
@@ -76,7 +80,6 @@ class Github:
             return response
         else:
             raise UnknownException(getattr(response, "body"))
-
 
     def set_repo(self, owner, repo):
         assert owner and isinstance(owner, str)

@@ -3,6 +3,7 @@ import argparse
 from collections import defaultdict
 from MyGithub import Github, MyGithubException
 
+
 class RepoDataCollector:
     api = None
     # higher numbers might cause memory error
@@ -81,7 +82,6 @@ class RepoDataCollector:
         return issues_data
 
 
-
 class GithubAnalytics:
     commits_data = None
     pull_requests_data = None
@@ -114,7 +114,7 @@ class GithubAnalytics:
                 d["opened"] += 1
             if closed_at := elem.get("closed_at"):
                 closed_at = self.str_to_datetime(closed_at)
-                if (not date_start or date_start <= created_at) and (not date_end or created_at <= date_end):
+                if (not date_start or date_start <= closed_at) and (not date_end or closed_at <= date_end):
                     d["closed"] += 1
         return d
 
@@ -125,7 +125,7 @@ class GithubAnalytics:
             created_at = self.str_to_datetime(created_at)
             if date_end - created_at > datetime.timedelta(days=days_for_retirement):
                 if not elem.get("closed_at"):
-                        retired_count += 1
+                    retired_count += 1
                 else:
                     closed_at = elem.get("closed_at")
                     closed_at = self.str_to_datetime(closed_at)
@@ -138,7 +138,9 @@ class GithubAnalytics:
         """Task 1"""
         d = defaultdict(lambda: 0)
         for commit_data in self.commits_data:
-            if commit_data.get("commit") and commit_data.get("commit").get("author") and commit_data.get("commit").get("author").get("name"):
+            if (commit_data.get("commit") and
+                    commit_data.get("commit").get("author") and
+                    commit_data.get("commit").get("author").get("name")):
                 author_name = commit_data.get("commit").get("author").get("name")
                 d[author_name] += 1
         # sorting and returning display_limit tuples of person name and number of commits
@@ -152,25 +154,29 @@ class GithubAnalytics:
 
     def get_opened_and_closed_pull_requests(self, date_start, date_end):
         """Task 2"""
-        opened_and_closed_pull_requests = self.get_opened_and_closed_objects(self.pull_requests_data, date_start, date_end)
+        opened_and_closed_pull_requests = self.get_opened_and_closed_objects(
+            self.pull_requests_data, date_start, date_end)
 
         print(f"Number of opened pull requests: {opened_and_closed_pull_requests['opened']}")
         print(f"Number of closed pull requests: {opened_and_closed_pull_requests['closed']}\n")
 
     def get_retired_pull_requests(self, date_end, days_for_retirement=30):
         """Task 3"""
-        retired_pull_requests_count = self.get_retired_objects(self.pull_requests_data, date_end, days_for_retirement)
+        retired_pull_requests_count = self.get_retired_objects(
+            self.pull_requests_data, date_end, days_for_retirement)
         print(f"Number of retired pull requests: {retired_pull_requests_count}\n")
 
     def get_opened_and_closed_issues(self, date_start, date_end):
         """Task 4"""
-        opened_and_closed_issues =  self.get_opened_and_closed_objects(self.issues_data, date_start, date_end)
+        opened_and_closed_issues = self.get_opened_and_closed_objects(
+            self.issues_data, date_start, date_end)
         print(f"Number of opened issues: {opened_and_closed_issues['opened']}")
         print(f"Number of closed issues: {opened_and_closed_issues['closed']}\n")
 
     def get_retired_issues(self, date_end, days_for_retirement=14):
         """Task 5"""
-        retired_issues_count = self.get_retired_objects(self.issues_data, date_end, days_for_retirement)
+        retired_issues_count = self.get_retired_objects(
+            self.issues_data, date_end, days_for_retirement)
         print(f"Number of retired issues: {retired_issues_count}\n")
 
     def run_all_tasks(self, date_start, date_end):
@@ -199,6 +205,7 @@ def run(owner, repo, date_start=None, date_end=None, branch=None, token=None) ->
     )
     github_analytics.run_all_tasks(date_start, date_end)
 
+
 def str_to_datetime(string, is_start=True):
     try:
         if len(string) == 10:
@@ -212,6 +219,7 @@ def str_to_datetime(string, is_start=True):
     except ValueError:
         raise ValueError('Wrong date_start format, YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS are required')
     return datetime_obj
+
 
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()

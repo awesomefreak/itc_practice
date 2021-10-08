@@ -1,4 +1,4 @@
-Github analizer!
+Github analyzer!
 
 To use:
 
